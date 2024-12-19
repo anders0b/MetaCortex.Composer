@@ -1,0 +1,151 @@
+services:
+  #Ocelot API Gateway
+  ocelot-frontend:
+    image: ghcr.io/anders0b/metacortex-panther:latest
+    ports:
+      - "5000:5000"
+    environment:
+      - ASPNETCORE_URLS=http://+:5000
+    depends_on:
+      - metacortex-payments
+      - metacortex-orders
+      - metacortex-customers
+      - metacortex-products
+    networks:
+      - app-network
+
+  # DeluxeSeeder
+  metacortex-deluxeseeder:
+    image: ghcr.io/anders0b/metacortex-deluxeseeder:latest
+    ports:
+      - "5010:80"
+    depends_on:
+      - metacortex-payments
+      - metacortex-customers
+      - metacortex-orders
+      - metacortex-products
+    networks:
+      - app-network
+
+  # Payment
+  metacortex-payments:
+    image: ghcr.io/heimbrand/metacortex-payments:latest
+    ports:
+      - "5001:80"
+    environment:
+      - MongoDbSettings__Host=metacortex-payments-db
+      - MongoDbSettings__Port=27017
+      - MongoDbSettings__DatabaseName=MetaCortex-Payments
+      - MongoDbSettings__CollectionName=Payment
+    depends_on:
+      - metacortex-payments-db
+      - rabbitmq-service
+    networks:
+      - app-network
+    
+  metacortex-payments-db:
+    image: mongo:6.0
+    container_name: mongodb-payments-container
+    ports:
+    - "1433:1433"
+    networks:
+    - app-network
+    volumes:
+    - mongodb_data:/data/payments-db
+
+  # Orders
+  metacortex-orders:
+    image: ghcr.io/anders0b/metacortex-orders:latest
+    ports:
+      - "5002:80"
+    environment:
+      - MongoDbSettings__Host=metacortex-orders-db
+      - MongoDbSettings__Port=27017
+      - MongoDbSettings__DatabaseName=MetaCortex-Orders
+      - MongoDbSettings__CollectionName=OrderCollection
+    depends_on:
+      - metacortex-orders-db
+      - rabbitmq-service
+    networks:
+      - app-network
+    
+  metacortex-orders-db:
+    image: mongo:6.0
+    container_name: mongodb-orders-container
+    ports:
+    - "1434:1433"
+    networks:
+    - app-network
+    volumes:
+    - mongodb_data:/data/orders-db
+
+  # Customers
+  metacortex-customers:
+    image: ghcr.io/jesperwhendin/metacortex-customers:latest
+    ports:
+      - "5003:80"
+    environment:
+      - MongoDbSettings__Host=metacortex-customers-db
+      - MongoDbSettings__Port=27017
+      - MongoDbSettings__DatabaseName=MetaCortex-Customers
+      - MongoDbSettings__CollectionName=CustomerCollection
+    depends_on:
+      - metacortex-customers-db
+      - rabbitmq-service
+    networks:
+      - app-network
+    
+  metacortex-customers-db:
+    image: mongo:6.0
+    container_name: mongodb-customers-container
+    ports:
+    - "1435:1433"
+    networks:
+    - app-network
+    volumes:
+    - mongodb_data:/data/customer-db
+
+  # Products
+  metacortex-products:
+    image: ghcr.io/gabrielrai/metacortex-products:latest
+    ports:
+      - "5004:80"
+    environment:
+      - MongoDbSettings__Host=metacortex-products-db
+      - MongoDbSettings__Port=27017
+      - MongoDbSettings__DatabaseName=MetaCortex-Products
+      - MongoDbSettings__CollectionName=ProductCollection
+    depends_on:
+      - metacortex-products-db
+      - rabbitmq-service
+    networks:
+      - app-network
+    
+  metacortex-products-db:
+    image: mongo:6.0
+    container_name: mongodb-products-container
+    ports:
+    - "1436:1433"
+    networks:
+    - app-network
+    volumes:
+    - mongodb_data:/data/products-db
+
+  rabbitmq-service:
+    image: rabbitmq:3-management
+    container_name: rabbitmq-container
+    ports:
+      - "5672:5672" # RabbitMQ connection
+      - "15672:15672" # Management console
+    environment:
+      - RABBITMQ_DEFAULT_USER=guest
+      - RABBITMQ_DEFAULT_PASS=guest
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge
+
+volumes:
+  mongodb_data:
